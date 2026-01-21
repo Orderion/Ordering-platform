@@ -14,9 +14,11 @@ const AdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('orders');
   const [statusFilter, setStatusFilter] = useState('');
 
+  const ADMIN_GITHUB_ID = import.meta.env.VITE_ADMIN_GITHUB_ID;
+
   useEffect(() => {
     if (!authLoading) {
-      if (!user || user.githubId !== import.meta.env.VITE_ADMIN_GITHUB_ID) {
+      if (!user || user.githubId !== ADMIN_GITHUB_ID) {
         navigate('/');
         return;
       }
@@ -65,15 +67,7 @@ const AdminDashboard = () => {
     return <span className={`status-badge ${s.class}`}>{s.text}</span>;
   };
 
-  if (authLoading || loading) {
-    return (
-      <div className="admin-dashboard">
-        <div className="container">
-          <div className="loading">Loading...</div>
-        </div>
-      </div>
-    );
-  }
+  if (authLoading || loading) return <div className="loading">Loading...</div>;
 
   return (
     <div className="admin-dashboard">
@@ -98,16 +92,10 @@ const AdminDashboard = () => {
         )}
 
         <div className="admin-tabs">
-          <button
-            className={activeTab === 'orders' ? 'active' : ''}
-            onClick={() => setActiveTab('orders')}
-          >
+          <button className={activeTab === 'orders' ? 'active' : ''} onClick={() => setActiveTab('orders')}>
             Orders
           </button>
-          <button
-            className={activeTab === 'users' ? 'active' : ''}
-            onClick={() => setActiveTab('users')}
-          >
+          <button className={activeTab === 'users' ? 'active' : ''} onClick={() => setActiveTab('users')}>
             Users
           </button>
         </div>
@@ -115,11 +103,7 @@ const AdminDashboard = () => {
         {activeTab === 'orders' && (
           <div className="admin-content">
             <div className="filter-bar">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="filter-select"
-              >
+              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="filter-select">
                 <option value="">All Statuses</option>
                 <option value="pending">Pending</option>
                 <option value="paid">Paid</option>
@@ -135,9 +119,7 @@ const AdminDashboard = () => {
                     <div>
                       <h3>{order.serviceType}</h3>
                       <p>{order.userName} ({order.userEmail})</p>
-                      <p className="order-date">
-                        {new Date(order.createdAt).toLocaleString()}
-                      </p>
+                      <p className="order-date">{new Date(order.createdAt).toLocaleString()}</p>
                     </div>
                     <div className="order-badges">
                       {getStatusBadge(order.orderStatus)}
@@ -148,21 +130,13 @@ const AdminDashboard = () => {
                   </div>
                   <p className="order-description">{order.description}</p>
                   <div className="order-actions-admin">
-                    <select
-                      value={order.orderStatus}
-                      onChange={(e) => updateOrderStatus(order.id, e.target.value, order.paymentStatus)}
-                      className="status-select"
-                    >
+                    <select value={order.orderStatus} onChange={(e) => updateOrderStatus(order.id, e.target.value, order.paymentStatus)} className="status-select">
                       <option value="pending">Pending</option>
                       <option value="paid">Paid</option>
                       <option value="in_progress">In Progress</option>
                       <option value="completed">Completed</option>
                     </select>
-                    <select
-                      value={order.paymentStatus}
-                      onChange={(e) => updateOrderStatus(order.id, order.orderStatus, e.target.value)}
-                      className="status-select"
-                    >
+                    <select value={order.paymentStatus} onChange={(e) => updateOrderStatus(order.id, order.orderStatus, e.target.value)} className="status-select">
                       <option value="pending">Payment Pending</option>
                       <option value="paid">Payment Paid</option>
                       <option value="failed">Payment Failed</option>
@@ -180,17 +154,12 @@ const AdminDashboard = () => {
               {users.map(user => (
                 <div key={user.id} className="user-card">
                   <div className="user-avatar-large">
-                    <img
-                      src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}`}
-                      alt={user.name}
-                    />
+                    <img src={user.avatarUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}`} alt={user.name} />
                   </div>
                   <div className="user-info">
                     <h3>{user.name}</h3>
                     <p>{user.email}</p>
-                    <p className="user-meta">
-                      {user._count.orders} orders • Joined {new Date(user.createdAt).toLocaleDateString()}
-                    </p>
+                    <p className="user-meta">{user._count.orders} orders • Joined {new Date(user.createdAt).toLocaleDateString()}</p>
                   </div>
                 </div>
               ))}
