@@ -1,12 +1,12 @@
 import express from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
-import { prisma } from '../server.js';
+import prisma from '../prisma.js';
 import { authenticateToken } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Initialize Paystack payment
+// -------------------- PAYSTACK -------------------- //
 router.post('/paystack', authenticateToken, async (req, res, next) => {
   try {
     const { orderId, amount, email } = req.body;
@@ -15,18 +15,10 @@ router.post('/paystack', authenticateToken, async (req, res, next) => {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    // Verify order exists and belongs to user
-    const order = await prisma.order.findUnique({
-      where: { id: orderId }
-    });
-
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (order.userId && order.userId !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
+    // Verify order exists
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.userId && order.userId !== req.user.id) return res.status(403).json({ error: 'Access denied' });
 
     // Generate reference
     const reference = `paystack_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
@@ -36,24 +28,15 @@ router.post('/paystack', authenticateToken, async (req, res, next) => {
       'https://api.paystack.co/transaction/initialize',
       {
         email,
-        amount: Math.round(amount * 100), // Convert to kobo
+        amount: Math.round(amount * 100),
         reference,
         callback_url: `${process.env.FRONTEND_URL}/payment/callback?provider=paystack&orderId=${orderId}`,
-        metadata: {
-          orderId,
-          userId: req.user.id
-        }
+        metadata: { orderId, userId: req.user.id }
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: { Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`, 'Content-Type': 'application/json' } }
     );
 
     if (response.data.status) {
-      // Create payment record
       await prisma.payment.create({
         data: {
           orderId,
@@ -65,52 +48,33 @@ router.post('/paystack', authenticateToken, async (req, res, next) => {
         }
       });
 
-      // Update order payment method
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          paymentMethod: 'paystack'
-        }
-      });
+      await prisma.order.update({ where: { id: orderId }, data: { paymentMethod: 'paystack' } });
 
-      res.json({
+      return res.json({
         authorizationUrl: response.data.data.authorization_url,
         reference: response.data.data.reference
       });
-    } else {
-      throw new Error('Failed to initialize Paystack payment');
     }
+
+    throw new Error('Failed to initialize Paystack payment');
   } catch (error) {
     next(error);
   }
 });
 
-// Initialize Flutterwave payment
+// -------------------- FLUTTERWAVE -------------------- //
 router.post('/flutterwave', authenticateToken, async (req, res, next) => {
   try {
     const { orderId, amount, currency = 'NGN', email } = req.body;
 
-    if (!orderId || !amount || !email) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    if (!orderId || !amount || !email) return res.status(400).json({ error: 'Missing required fields' });
 
-    // Verify order exists and belongs to user
-    const order = await prisma.order.findUnique({
-      where: { id: orderId }
-    });
+    const order = await prisma.order.findUnique({ where: { id: orderId } });
+    if (!order) return res.status(404).json({ error: 'Order not found' });
+    if (order.userId && order.userId !== req.user.id) return res.status(403).json({ error: 'Access denied' });
 
-    if (!order) {
-      return res.status(404).json({ error: 'Order not found' });
-    }
-
-    if (order.userId && order.userId !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    // Generate reference
     const txRef = `flw_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Initialize Flutterwave payment (Standard)
     const response = await axios.post(
       'https://api.flutterwave.com/v3/payments',
       {
@@ -118,25 +82,13 @@ router.post('/flutterwave', authenticateToken, async (req, res, next) => {
         amount,
         currency: currency.toUpperCase(),
         redirect_url: `${process.env.FRONTEND_URL}/payment/callback?provider=flutterwave&orderId=${orderId}`,
-        customer: {
-          email,
-          name: order.userName
-        },
-        meta: {
-          orderId,
-          userId: req.user.id
-        }
+        customer: { email, name: order.userName || 'Customer' },
+        meta: { orderId, userId: req.user.id }
       },
-      {
-        headers: {
-          Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
-          'Content-Type': 'application/json'
-        }
-      }
+      { headers: { Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`, 'Content-Type': 'application/json' } }
     );
 
     if (response.data.status === 'success') {
-      // Create payment record
       await prisma.payment.create({
         data: {
           orderId,
@@ -149,27 +101,18 @@ router.post('/flutterwave', authenticateToken, async (req, res, next) => {
         }
       });
 
-      // Update order payment method
-      await prisma.order.update({
-        where: { id: orderId },
-        data: {
-          paymentMethod: 'flutterwave'
-        }
-      });
+      await prisma.order.update({ where: { id: orderId }, data: { paymentMethod: 'flutterwave' } });
 
-      res.json({
-        paymentLink: response.data.data.link,
-        reference: txRef
-      });
-    } else {
-      throw new Error('Failed to initialize Flutterwave payment');
+      return res.json({ paymentLink: response.data.data.link, reference: txRef });
     }
+
+    throw new Error('Failed to initialize Flutterwave payment');
   } catch (error) {
     next(error);
   }
 });
 
-// Paystack webhook
+// -------------------- PAYSTACK WEBHOOK -------------------- //
 router.post('/webhooks/paystack', async (req, res, next) => {
   try {
     const hash = crypto
@@ -177,39 +120,16 @@ router.post('/webhooks/paystack', async (req, res, next) => {
       .update(JSON.stringify(req.body))
       .digest('hex');
 
-    if (hash !== req.headers['x-paystack-signature']) {
-      return res.status(400).json({ error: 'Invalid signature' });
-    }
+    if (hash !== req.headers['x-paystack-signature']) return res.status(400).json({ error: 'Invalid signature' });
 
     const event = req.body;
-
     if (event.event === 'charge.success') {
-      const { reference, amount, customer } = event.data;
+      const { reference, amount } = event.data;
 
-      // Find payment
-      const payment = await prisma.payment.findUnique({
-        where: { reference },
-        include: { order: true }
-      });
-
+      const payment = await prisma.payment.findUnique({ where: { reference } });
       if (payment && payment.status === 'pending') {
-        // Update payment status
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: 'success',
-            metadata: JSON.stringify(event.data)
-          }
-        });
-
-        // Update order status
-        await prisma.order.update({
-          where: { id: payment.orderId },
-          data: {
-            paymentStatus: 'paid',
-            orderStatus: 'paid'
-          }
-        });
+        await prisma.payment.update({ where: { id: payment.id }, data: { status: 'success', metadata: JSON.stringify(event.data) } });
+        await prisma.order.update({ where: { id: payment.orderId }, data: { paymentStatus: 'paid', orderStatus: 'paid' } });
       }
     }
 
@@ -219,45 +139,22 @@ router.post('/webhooks/paystack', async (req, res, next) => {
   }
 });
 
-// Flutterwave webhook
+// -------------------- FLUTTERWAVE WEBHOOK -------------------- //
 router.post('/webhooks/flutterwave', async (req, res, next) => {
   try {
     const secretHash = process.env.FLUTTERWAVE_WEBHOOK_HASH;
     const signature = req.headers['verif-hash'];
 
-    if (!secretHash || !signature || signature !== secretHash) {
-      return res.status(400).json({ error: 'Invalid signature' });
-    }
+    if (!secretHash || !signature || signature !== secretHash) return res.status(400).json({ error: 'Invalid signature' });
 
     const event = req.body;
-
     if (event.event === 'charge.completed' && event.data.status === 'successful') {
-      const { tx_ref: reference, amount } = event.data;
+      const { tx_ref: reference } = event.data;
 
-      // Find payment
-      const payment = await prisma.payment.findUnique({
-        where: { reference },
-        include: { order: true }
-      });
-
+      const payment = await prisma.payment.findUnique({ where: { reference } });
       if (payment && payment.status === 'pending') {
-        // Update payment status
-        await prisma.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: 'success',
-            metadata: JSON.stringify(event.data)
-          }
-        });
-
-        // Update order status
-        await prisma.order.update({
-          where: { id: payment.orderId },
-          data: {
-            paymentStatus: 'paid',
-            orderStatus: 'paid'
-          }
-        });
+        await prisma.payment.update({ where: { id: payment.id }, data: { status: 'success', metadata: JSON.stringify(event.data) } });
+        await prisma.order.update({ where: { id: payment.orderId }, data: { paymentStatus: 'paid', orderStatus: 'paid' } });
       }
     }
 

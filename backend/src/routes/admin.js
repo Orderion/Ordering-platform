@@ -1,10 +1,10 @@
 import express from 'express';
 import { requireAdmin } from '../middleware/admin.js';
-import { prisma } from '../server.js';
+import prisma from '../prisma.js';
 
 const router = express.Router();
 
-// Get all users
+// -------------------- GET ALL USERS -------------------- //
 router.get('/users', requireAdmin, async (req, res, next) => {
   try {
     const users = await prisma.user.findMany({
@@ -28,7 +28,7 @@ router.get('/users', requireAdmin, async (req, res, next) => {
   }
 });
 
-// Get all orders
+// -------------------- GET ALL ORDERS -------------------- //
 router.get('/orders', requireAdmin, async (req, res, next) => {
   try {
     const { status, paymentStatus } = req.query;
@@ -40,17 +40,8 @@ router.get('/orders', requireAdmin, async (req, res, next) => {
     const orders = await prisma.order.findMany({
       where,
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true
-          }
-        },
-        payments: {
-          orderBy: { createdAt: 'desc' }
-        }
+        user: { select: { id: true, name: true, email: true, avatarUrl: true } },
+        payments: { orderBy: { createdAt: 'desc' } }
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -61,7 +52,7 @@ router.get('/orders', requireAdmin, async (req, res, next) => {
   }
 });
 
-// Update order status
+// -------------------- UPDATE ORDER STATUS -------------------- //
 router.put('/orders/:id/status', requireAdmin, async (req, res, next) => {
   try {
     const { orderStatus, paymentStatus } = req.body;
@@ -90,16 +81,8 @@ router.put('/orders/:id/status', requireAdmin, async (req, res, next) => {
       where: { id },
       data: updateData,
       include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true
-          }
-        },
-        payments: {
-          orderBy: { createdAt: 'desc' }
-        }
+        user: { select: { id: true, name: true, email: true } },
+        payments: { orderBy: { createdAt: 'desc' } }
       }
     });
 
@@ -112,7 +95,7 @@ router.put('/orders/:id/status', requireAdmin, async (req, res, next) => {
   }
 });
 
-// Get dashboard stats
+// -------------------- DASHBOARD STATS -------------------- //
 router.get('/stats', requireAdmin, async (req, res, next) => {
   try {
     const [
@@ -128,21 +111,12 @@ router.get('/stats', requireAdmin, async (req, res, next) => {
         where: { status: 'success' },
         _sum: { amount: true }
       }),
-      prisma.order.groupBy({
-        by: ['orderStatus'],
-        _count: true
-      }),
-      prisma.payment.groupBy({
-        by: ['status'],
-        _count: true,
-        _sum: { amount: true }
-      })
+      prisma.order.groupBy({ by: ['orderStatus'], _count: true }),
+      prisma.payment.groupBy({ by: ['status'], _count: true, _sum: { amount: true } })
     ]);
 
     res.json({
-      users: {
-        total: totalUsers
-      },
+      users: { total: totalUsers },
       orders: {
         total: totalOrders,
         byStatus: ordersByStatus.reduce((acc, item) => {
@@ -153,10 +127,7 @@ router.get('/stats', requireAdmin, async (req, res, next) => {
       revenue: {
         total: totalRevenue._sum.amount || 0,
         byStatus: paymentsByStatus.reduce((acc, item) => {
-          acc[item.status] = {
-            count: item._count,
-            amount: item._sum.amount || 0
-          };
+          acc[item.status] = { count: item._count, amount: item._sum.amount || 0 };
           return acc;
         }, {})
       }

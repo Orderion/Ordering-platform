@@ -2,7 +2,7 @@ import express from 'express';
 import passport from 'passport';
 import { Strategy as GitHubStrategy } from 'passport-github2';
 import jwt from 'jsonwebtoken';
-import { prisma } from '../server.js';
+import prisma from '../prisma.js';
 
 const router = express.Router();
 
@@ -13,7 +13,6 @@ passport.use(new GitHubStrategy({
   callbackURL: process.env.GITHUB_CALLBACK_URL
 }, async (accessToken, refreshToken, profile, done) => {
   try {
-    // Find or create user
     let user = await prisma.user.findUnique({
       where: { githubId: profile.id.toString() }
     });
@@ -28,7 +27,6 @@ passport.use(new GitHubStrategy({
         }
       });
     } else {
-      // Update user info
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
@@ -45,36 +43,27 @@ passport.use(new GitHubStrategy({
   }
 }));
 
-// Initialize GitHub OAuth
+// GitHub OAuth routes
 router.get('/github', passport.authenticate('github', { scope: ['user:email'] }));
 
-// GitHub OAuth callback
 router.get('/github/callback',
   passport.authenticate('github', { session: false, failureRedirect: '/auth/failure' }),
   async (req, res) => {
     try {
       const user = req.user;
-      
-      // Generate JWT
       const token = jwt.sign(
-        { 
-          id: user.id, 
-          githubId: user.githubId, 
-          email: user.email 
-        },
+        { id: user.id, githubId: user.githubId, email: user.email },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
 
-      // Set HTTP-only cookie
       res.cookie('token', token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'none',
-        maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+        maxAge: 7 * 24 * 60 * 60 * 1000
       });
 
-      // Redirect to frontend
       const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
       res.redirect(`${frontendUrl}/auth/callback?success=true`);
     } catch (error) {
@@ -89,28 +78,15 @@ router.get('/github/callback',
 router.get('/me', async (req, res) => {
   try {
     const token = req.cookies.token || req.headers.authorization?.split(' ')[1];
-    
-    if (!token) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
+    if (!token) return res.status(401).json({ error: 'Not authenticated' });
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: decoded.id },
-      select: {
-        id: true,
-        githubId: true,
-        name: true,
-        email: true,
-        avatarUrl: true,
-        createdAt: true
-      }
+      select: { id: true, githubId: true, name: true, email: true, avatarUrl: true, createdAt: true }
     });
 
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
+    if (!user) return res.status(404).json({ error: 'User not found' });
     res.json(user);
   } catch (error) {
     res.status(401).json({ error: 'Invalid token' });
@@ -127,7 +103,7 @@ router.post('/logout', (req, res) => {
   res.json({ message: 'Logged out successfully' });
 });
 
-// Auth failure handler
+// Auth failure
 router.get('/failure', (req, res) => {
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
   res.redirect(`${frontendUrl}/auth/callback?success=false`);

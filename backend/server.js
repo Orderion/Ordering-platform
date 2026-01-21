@@ -2,9 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
-
-// Routes
 import authRoutes from './src/routes/auth.js';
 import orderRoutes from './src/routes/orders.js';
 import paymentRoutes from './src/routes/payments.js';
@@ -13,7 +10,6 @@ import adminRoutes from './src/routes/admin.js';
 dotenv.config();
 
 const app = express();
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -56,11 +52,3 @@ app.use((req, res) => {
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-// Graceful shutdown
-process.on('SIGTERM', async () => {
-  await prisma.$disconnect();
-  process.exit(0);
-});
-
-export { prisma };
