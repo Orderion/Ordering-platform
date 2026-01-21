@@ -1,7 +1,8 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
+// Replace "your-repo-name" with the actual repo name (case sensitive)
 export default defineConfig({
-  base: '/ordering-platform/', // add this line
-  plugins: [react()]
+  base: '/ordering-platform/', 
+  plugins: [react()],
 });
