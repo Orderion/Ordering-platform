@@ -3,10 +3,12 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
-import authRoutes from './routes/auth.js';
-import orderRoutes from './routes/orders.js';
-import paymentRoutes from './routes/payments.js';
-import adminRoutes from './routes/admin.js';
+
+// Routes
+import authRoutes from './src/routes/auth.js';
+import orderRoutes from './src/routes/orders.js';
+import paymentRoutes from './src/routes/payments.js';
+import adminRoutes from './src/routes/admin.js';
 
 dotenv.config();
 
@@ -21,9 +23,6 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
-
-// Stripe webhook needs raw body - handle before JSON parser
-app.use('/payments/webhooks/stripe', express.raw({ type: 'application/json' }));
 
 app.use(express.json());
 app.use(cookieParser());
