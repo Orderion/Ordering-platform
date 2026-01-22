@@ -1,38 +1,52 @@
-import { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import { createContext, useContext, useEffect, useState } from "react";
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
+  GoogleAuthProvider,
+  GithubAuthProvider,
+} from "firebase/auth";
+import { auth } from "../lib/firebase";
 
-// Create Auth context
 const AuthContext = createContext();
 
-// AuthProvider component
+const googleProvider = new GoogleAuthProvider();
+const githubProvider = new GithubAuthProvider();
+
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Fetch current user on mount
   useEffect(() => {
-    const fetchUser = async () => {
-      try {
-        const res = await axios.get(`${import.meta.env.VITE_API_URL}/auth/me`, {
-          withCredentials: true
-        });
-        setUser(res.data);
-      } catch (err) {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchUser();
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setLoading(false);
+    });
+    return unsubscribe;
   }, []);
 
+  const loginWithGoogle = async () => {
+    const result = await signInWithPopup(auth, googleProvider);
+    setUser(result.user);
+  };
+
+  const loginWithGithub = async () => {
+    const result = await signInWithPopup(auth, githubProvider);
+    setUser(result.user);
+  };
+
+  const logout = async () => {
+    await signOut(auth);
+    setUser(null);
+  };
+
   return (
-    <AuthContext.Provider value={{ user, setUser, loading }}>
-      {children}
+    <AuthContext.Provider
+      value={{ user, loading, loginWithGoogle, loginWithGithub, logout }}
+    >
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
 
-// Custom hook to use Auth context
 export const useAuth = () => useContext(AuthContext);
