@@ -17,8 +17,8 @@ const Home = () => {
           <span className="badge">✨ New: React + Tailwind Support</span>
 
           <h1>
-            Get Your Web- <br />
-            site & Digital <br />
+            Get Your Website <br />
+            & Digital <br />
             Services Here
           </h1>
 
