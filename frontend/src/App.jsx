@@ -14,6 +14,7 @@ import Signup from "./pages/Signup";
 
 import "./App.css";
 
+console.log("VITE_API_URL =", import.meta.env.VITE_API_URL);
 function AppContent() {
   const location = useLocation();
   const isAuthPage =
