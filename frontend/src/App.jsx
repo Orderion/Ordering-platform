@@ -1,27 +1,30 @@
-import { Routes, Route, useLocation } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import Navbar from './components/Navbar';
+import { Routes, Route, useLocation } from "react-router-dom";
+import { AuthProvider } from "./contexts/AuthContext";
+import Navbar from "./components/Navbar";
 
-import Home from './pages/Home';
-import OrderForm from './pages/OrderForm';
-import Dashboard from './pages/Dashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import AuthCallback from './pages/AuthCallback';
-import Payment from './pages/Payment'; // ✅ THIS WAS MISSING
-import PaymentCallback from './pages/PaymentCallback';
-import Login from './pages/Login';
-import Signup from './pages/Signup';
+import Home from "./pages/Home";
+import OrderForm from "./pages/OrderForm";
+import Dashboard from "./pages/Dashboard";
+import AdminDashboard from "./pages/AdminDashboard";
+import AuthCallback from "./pages/AuthCallback";
+import Payment from "./pages/Payment";
+import PaymentCallback from "./pages/PaymentCallback";
+import Login from "./pages/Login";
+import Signup from "./pages/Signup";
 
-import './App.css';
+import "./App.css";
 
 function AppContent() {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/signup';
+  const isAuthPage =
+    location.pathname === "/login" || location.pathname === "/signup";
 
   return (
     <div className="app">
+      {/* Show navbar everywhere except auth pages */}
       {!isAuthPage && <Navbar />}
-      <main className={isAuthPage ? 'auth-main' : ''}>
+
+      <main className={isAuthPage ? "auth-main" : ""}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/order" element={<OrderForm />} />

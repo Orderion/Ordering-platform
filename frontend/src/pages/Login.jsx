@@ -22,9 +22,8 @@ const Login = () => {
   };
 
   const handleSocialLogin = (provider) => {
-    // Placeholder - UI only for now
-    console.log(`Social login with ${provider}`);
-  };
+    window.location.href = `http://localhost:5000/auth/${provider}`;
+  };  
 
   return (
     <div className="auth-page">
